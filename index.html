@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Indian Vehicle Clusters — Classification Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0e1a;--card:#111827;--border:rgba(99,102,241,0.1);
+      --border-h:rgba(99,102,241,0.3);--txt:#f3f4f6;--txt2:#9ca3af;
+      --txt3:#6b7280;--accent:#6366f1;--accent-light:rgba(99,102,241,0.1);
+      --green:#10b981;--blue:#3b82f6;--orange:#f59e0b;--red:#ef4444;
+      --purple:#8b5cf6;--cyan:#06b6d4;
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;overflow-x:hidden}
+
+    /* NAV */
+    nav{position:sticky;top:0;z-index:100;background:rgba(10,14,26,.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:68px}
+    .logo{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1.05rem;display:flex;align-items:center;gap:12px;color:var(--accent)}
+    .logo::before{content:'🚗';font-size:1.3rem}
+    .nav-right{display:flex;align-items:center;gap:2rem}
+    .nav-stats{display:flex;gap:1.5rem;font-size:.8rem;color:var(--txt3);font-family:'JetBrains Mono',monospace}
+    .nav-stats span{color:var(--accent);font-weight:600}
+
+    /* HERO */
+    .hero{padding:4rem 2rem 2rem;max-width:1400px;margin:0 auto;position:relative}
+    .hero::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:800px;height:400px;background:radial-gradient(ellipse at center,rgba(99,102,241,.08) 0%,transparent 70%);pointer-events:none}
+    .hero h1{font-size:clamp(2.2rem,5vw,3.8rem);font-weight:800;line-height:1.1;margin-bottom:1rem;background:linear-gradient(135deg,var(--txt) 0%,var(--txt2) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .hero p{font-size:1.05rem;color:var(--txt2);max-width:680px;line-height:1.7}
+    .cluster-nav{display:flex;gap:.8rem;margin-top:2rem;flex-wrap:wrap}
+    .cluster-btn{text-decoration:none;padding:.6rem 1.2rem;border-radius:8px;font-size:.85rem;font-weight:600;border:1px solid var(--border);background:var(--card);color:var(--txt2);transition:all .2s;font-family:'JetBrains Mono',monospace}
+    .cluster-btn:hover{border-color:var(--border-h);color:var(--txt);background:var(--accent-light)}
+
+    /* SECTION */
+    .sec{max-width:1400px;margin:0 auto 5rem;padding:0 2rem}
+    .sec-hd{margin-bottom:2rem;padding-bottom:1.2rem;border-bottom:2px solid var(--border)}
+    .cluster-title{font-size:1.8rem;font-weight:800;display:flex;align-items:center;gap:1rem;margin-bottom:.5rem}
+    .cluster-code{font-family:'JetBrains Mono',monospace;font-size:.9rem;padding:.3rem .8rem;border-radius:6px;background:var(--accent-light);color:var(--accent);border:1px solid var(--border-h);font-weight:600}
+    .cluster-desc{font-size:.95rem;color:var(--txt2);line-height:1.6;max-width:800px}
+    .cluster-meta{display:flex;gap:2rem;margin-top:.8rem;font-size:.85rem;color:var(--txt3);flex-wrap:wrap}
+    .cluster-meta span{display:flex;align-items:center;gap:.4rem}
+    .cluster-meta strong{color:var(--accent);font-weight:700}
+
+    /* GRID */
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem}
+
+    /* CARDS */
+    .vcard{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:all .3s;cursor:pointer;animation:fadeUp .5s ease both}
+    .vcard:hover{transform:translateY(-6px);border-color:var(--border-h);box-shadow:0 20px 50px rgba(99,102,241,.15)}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    .vcard:nth-child(2){animation-delay:.08s}.vcard:nth-child(3){animation-delay:.16s}
+    .vcard:nth-child(4){animation-delay:.24s}.vcard:nth-child(5){animation-delay:.32s}
+    .vcard:nth-child(6){animation-delay:.4s}
+
+    /* IMAGE */
+    .vimg-wrap{position:relative;height:220px;overflow:hidden;background:linear-gradient(135deg,#1a1f35 0%,#0f1419 100%)}
+    .vimg{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .5s,transform .4s;position:relative;z-index:1}
+    .vimg.loaded{opacity:1}
+    .vcard:hover .vimg{transform:scale(1.05)}
+    .vimg-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(10,14,26,.85) 100%);pointer-events:none;z-index:2}
+    .vehicle-tag{position:absolute;top:12px;right:12px;font-size:.7rem;font-weight:700;padding:.35rem .8rem;border-radius:6px;z-index:3;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.05em}
+    .tag-popular{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+    .tag-commercial{background:rgba(245,158,11,.15);color:var(--orange);border:1px solid rgba(245,158,11,.3)}
+    .tag-flagship{background:rgba(16,185,129,.15);color:var(--green);border:1px solid rgba(16,185,129,.3)}
+    .tag-budget{background:rgba(59,130,246,.15);color:var(--blue);border:1px solid rgba(59,130,246,.3)}
+
+    /* SHIMMER */
+    .vimg-wrap::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.03),transparent);background-size:300% 100%;animation:shimmer 1.8s infinite;z-index:0}
+    .vimg-wrap.done::after{display:none}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* FALLBACK */
+    .vfb{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:0}
+    .vfb-icon{font-size:3rem;opacity:.3}
+    .vfb-text{font-size:.75rem;color:var(--txt3);text-align:center;padding:0 1rem;line-height:1.5;font-weight:500}
+
+    /* BODY */
+    .vbody{padding:1.2rem 1.3rem}
+    .vmake{font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);font-weight:700;margin-bottom:.4rem;font-family:'JetBrains Mono',monospace}
+    .vname{font-size:1.15rem;font-weight:700;color:var(--txt);line-height:1.3;margin-bottom:.6rem}
+    .vspecs{display:flex;gap:.8rem;font-size:.75rem;color:var(--txt3);flex-wrap:wrap}
+    .vspec{display:flex;align-items:center;gap:.3rem}
+    .vspec::before{content:'•';color:var(--accent)}
+
+    /* LIGHTBOX */
+    #lb{display:none;position:fixed;inset:0;z-index:999;align-items:center;justify-content:center;background:rgba(0,0,0,.92);backdrop-filter:blur(16px);animation:lbIn .25s ease}
+    #lb.open{display:flex}
+    @keyframes lbIn{from{opacity:0}to{opacity:1}}
+    #lb-inner{position:relative;max-width:950px;width:92vw;border-radius:18px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,.9);border:1px solid var(--border-h);animation:lbScale .3s cubic-bezier(.34,1.56,.64,1)}
+    @keyframes lbScale{from{transform:scale(.9)}to{transform:scale(1)}}
+    #lb-img{width:100%;display:block;max-height:75vh;object-fit:contain;background:#000}
+    #lb-info{padding:1.5rem 1.8rem;background:var(--card);display:flex;align-items:center;justify-content:space-between;gap:1rem}
+    #lb-make{font-size:.8rem;text-transform:uppercase;letter-spacing:.15em;color:var(--accent);font-weight:700;font-family:'JetBrains Mono',monospace}
+    #lb-name{font-size:1.5rem;font-weight:800;color:var(--txt);margin-top:.3rem}
+    #lb-close{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--txt2);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+    #lb-close:hover{background:rgba(255,255,255,.15);color:var(--txt);border-color:var(--border-h)}
+
+    footer{border-top:1px solid var(--border);padding:2.5rem 2rem;text-align:center;color:var(--txt3);font-size:.85rem;margin-top:4rem}
+    footer span{color:var(--accent);font-weight:600}
+
+    @media(max-width:768px){
+      nav{padding:0 1rem}.nav-stats{display:none}
+      .hero,.sec{padding-left:1rem;padding-right:1rem}
+      .grid{grid-template-columns:1fr;gap:1.2rem}
+      .cluster-meta{flex-direction:column;gap:.5rem}
+    }
+  </style>
+</head>
+<body>
+
+<!-- LIGHTBOX -->
+<div id="lb">
+  <div id="lb-inner">
+    <img id="lb-img" src="" alt=""/>
+    <div id="lb-info">
+      <div>
+        <div id="lb-make"></div>
+        <div id="lb-name"></div>
+      </div>
+      <button id="lb-close" onclick="closeLB()">✕</button>
+    </div>
+  </div>
+</div>
+
+<nav>
+  <div class="logo">VEHICLE_CLASSIFICATION.IN</div>
+  <div class="nav-right">
+    <div class="nav-stats">
+      <div>Clusters: <span>8</span></div>
+      <div>Vehicles: <span>50+</span></div>
+    </div>
+  </div>
+</nav>
+
+<div class="hero">
+  <h1>Indian Vehicle Classification System</h1>
+  <p>Comprehensive clustering of vehicles on Indian roads — from small cars to heavy commercial vehicles, organized by size, purpose, and operational characteristics.</p>
+  <div class="cluster-nav">
+    <a href="#small-car" class="cluster-btn">Small Cars</a>
+    <a href="#suv-mpv" class="cluster-btn">SUV/MPV</a>
+    <a href="#mini-truck" class="cluster-btn">Mini Trucks</a>
+    <a href="#lcv" class="cluster-btn">LCV Trucks</a>
+    <a href="#hcv" class="cluster-btn">HCV Trucks</a>
+    <a href="#bus-mini" class="cluster-btn">Mini Buses</a>
+    <a href="#bus-standard" class="cluster-btn">Standard Buses</a>
+    <a href="#bus-luxury" class="cluster-btn">Luxury Buses</a>
+  </div>
+</div>
+
+<div id="app"></div>
+
+<footer><p>Indian Vehicle Classification Dashboard · 2025 · Built for <span>Traffic Analysis & Monitoring</span></p></footer>
+
+<script>
+const clusters = [
+  {
+    id: "small-car",
+    icon: "🚗",
+    title: "Small Car Cluster",
+    code: "CLUSTER_SC",
+    desc: "Compact passenger vehicles including hatchbacks, compact sedans, and entry-level cars. Typically under 4 meters in length with 4-5 seating capacity.",
+    meta: { length: "3.5-4.0m", weight: "800-1200 kg", capacity: "4-5 passengers" },
+    vehicles: [
+      { make: "Maruti Suzuki", name: "Alto K10", wiki: "Maruti_Suzuki_Alto", tag: "Popular", tagClass: "tag-popular", specs: ["3.5m", "750kg", "4-seater"], fb: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Maruti_Suzuki_Alto_K10.jpg/640px-Maruti_Suzuki_Alto_K10.jpg" },
+      { make: "Maruti Suzuki", name: "Swift", wiki: "Maruti_Suzuki_Swift", tag: "Bestseller", tagClass: "tag-popular", specs: ["3.8m", "900kg", "5-seater"], fb: "https://imgd.aeplcdn.com/664x374/n/cw/ec/159099/swift-exterior-right-front-three-quarter-31.png" },
+      { make: "Hyundai", name: "i10 NIOS", wiki: "Hyundai_Grand_i10", tag: "", tagClass: "", specs: ["3.7m", "870kg", "5-seater"], fb: "https://img.gaadicdn.com/images/car-images/large/Hyundai/Grand-i10-Nios/10096/1684304585535/226_typhoon-silver_c2c7ce.jpg" },
+      { make: "Tata", name: "Tiago", wiki: "Tata_Tiago", tag: "Budget", tagClass: "tag-budget", specs: ["3.7m", "950kg", "5-seater"], fb: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Tata_Tiago.jpg/640px-Tata_Tiago.jpg" },
+    ]
+  },
+  {
+    id: "suv-mpv",
+    icon: "🚙",
+    title: "SUV / MPV Cluster",
+    code: "CLUSTER_SM",
+    desc: "Sport Utility Vehicles and Multi-Purpose Vehicles for passenger transport. Includes compact SUVs, mid-size SUVs, and people movers with 5-8 seating capacity.",
+    meta: { length: "4.0-5.0m", weight: "1400-2200 kg", capacity: "5-8 passengers" },
+    vehicles: [
+      { make: "Hyundai", name: "Creta", wiki: "Hyundai_Creta", tag: "Flagship", tagClass: "tag-flagship", specs: ["4.3m", "1500kg", "5-seater"], fb: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Hyundai_Creta.jpg/640px-Hyundai_Creta.jpg" },
+      // { make: "Tata", name: "Nexon", wiki: "Tata_Nexon", tag: "Popular", tagClass: "tag-popular", specs: ["4.0m", "1400kg", "5-seater"], fb: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Tata_Nexon_facelift.jpg/640px-Tata_Nexon_facelift.jpg" },
+      { make: "Toyota", name: "Innova Crysta", wiki: "Toyota_Innova_Crysta", tag: "Premium MPV", tagClass: "tag-flagship", specs: ["4.7m", "1950kg", "7-8 seater"], fb: "https://www.team-bhp.com/sites/default/files/styles/check_extra_large_for_review/public/1.75Ltoyotainnovarystaaimg.jpg" },
+      { make: "Maruti Suzuki", name: "Ertiga", wiki: "Suzuki_Ertiga", tag: "Budget MPV", tagClass: "tag-budget", specs: ["4.4m", "1200kg", "7-seater"], fb: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Maruti_Suzuki_Ertiga.jpg/640px-Maruti_Suzuki_Ertiga.jpg" },
+    ]
+  },
+  {
+    id: "mini-truck",
+    icon: "🛻",
+    title: "Mini Truck Cluster",
+    code: "CLUSTER_MT",
+    desc: "Light commercial vehicles for intra-city goods transport. Payload capacity under 1.5 tons, ideal for last-mile delivery and urban logistics.",
+    meta: { length: "3.5-4.5m", payload: "500-1500 kg", gvw: "2-3 tons" },
+    vehicles: [
+      { make: "Tata Motors", name: "Ace Gold", wiki: "Tata_Ace", tag: "Iconic", tagClass: "tag-popular", specs: ["3.8m", "1000kg", "2.0T GVW"], fb: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Tata_Ace_Gold_truck.jpg/640px-Tata_Ace_Gold_truck.jpg" },
+      { make: "Ashok Leyland", name: "Dost", wiki: "Ashok_Leyland_Dost", tag: "Commercial", tagClass: "tag-commercial", specs: ["4.1m", "1400kg", "2.5T GVW"], fb: "https://5.imimg.com/data5/ANDROID/Default/2023/12/366378092/ZH/DA/NX/95957274/product-jpeg-1000x1000.jpg" },
+      { make: "Mahindra", name: "Jeeto", wiki: "Mahindra_Jeeto", tag: "", tagClass: "", specs: ["3.5m", "800kg", "1.5T GVW"], fb: "https://assets.tractorjunction.com/truck-junction/assets/images/truck/jeeto-1691125414.webp?width=527&height=300" },
+      // { make: "Tata Motors", name: "Intra V30", wiki: "Tata_Motors_Commercial_vehicles", tag: "Budget", tagClass: "tag-budget", specs: ["3.9m", "1200kg", "2.2T GVW"], fb: "https://kamalmotors.co.in/wp-content/uploads/2022/05/Untitled-design-1.png" },
+    ]
+  },
+  {
+    id: "lcv",
+    icon: "🚚",
+    title: "Light Commercial Vehicle (LCV) Cluster",
+    code: "CLUSTER_LCV",
+    desc: "Medium-duty trucks for inter-city and regional transport. Payload capacity 1.5-7 tons, serving as the backbone of Indian logistics.",
+    meta: { length: "5.0-7.0m", payload: "1500-7000 kg", gvw: "3.5-12 tons" },
+    vehicles: [
+      { make: "Tata Motors", name: "407", wiki: "Tata_407", tag: "Market Leader", tagClass: "tag-flagship", specs: ["5.8m", "3500kg", "7.5T GVW"], fb: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Tata_407_truck.jpg/640px-Tata_407_truck.jpg" },
+      { make: "Eicher Motors", name: "Pro 3019", wiki: "Eicher_Pro_Series", tag: "Commercial", tagClass: "tag-commercial", specs: ["6.2m", "6000kg", "10T GVW"], fb: "https://res.cloudinary.com/dnreeobav/image/fetch/c_scale,q_30,w_350,f_auto/l_text:Arial_20_bold:TrucksBuses.com,x_70,y_100,co_rgb:ffffff/https://www.trucksbuses.com/uploads/4251_eicher-pro-3019-truck.jpg" },
+      // { make: "Ashok Leyland", name: "Partner", wiki: "Ashok_Leyland", tag: "", tagClass: "", specs: ["5.5m", "4000kg", "8T GVW"], fb: "https://www.cmv360.com/_next/image?url=https%3A%2F%2Fcmv360.s3.ap-southeast-1.amazonaws.com%2FAshok_Leyland_Partner_Super_914_1_b654f47a4b.webp&w=3840& }q=75" },
+      { make: "Mahindra", name: "Furio 7", wiki: "Mahindra_Trucks", tag: "", tagClass: "", specs: ["6.0m", "5000kg", "9T GVW"], fb: "https://assets.tractorjunction.com/truck-junction/assets/images/truck/furio-7-1674904014-1.webp?format=webp" },
+    ]
+  },
+  {
+    id: "hcv",
+    icon: "🚛",
+    title: "Heavy Commercial Vehicle (HCV) Cluster",
+    code: "CLUSTER_HCV",
+    desc: "Heavy-duty trucks for long-haul and bulk cargo transport. Payload capacity above 7 tons, critical for industrial and construction sectors.",
+    meta: { length: "7.0-12.0m", payload: "7000-25000 kg", gvw: "12-49 tons" },
+    vehicles: [
+      { make: "Tata Motors", name: "Prima 4940.S", wiki: "Tata_Prima", tag: "Flagship", tagClass: "tag-flagship", specs: ["11m", "24000kg", "40T GVW"], fb: "https://modimotorstata.com/images/HCV/TATA_PRIMA_5530.S_6x4.png" },
+      // { make: "Ashok Leyland", name: "2518", wiki: "Ashok_Leyland", tag: "Heavy Hauler", tagClass: "tag-commercial", specs: ["9.5m", "16000kg", "25T GVW"], fb: "/" },
+      { make: "Tata", name: "Signa 2823.K RMC", wiki: "Cement_Trucks", tag: "", tagClass: "", specs: ["6.0m", "10000kg", "9T GVW"], fb: "https://cdn.trucksfloor.com/vehicles/truck/trf/eicher-hdt-pro-6035tm/eicher-hdt-pro-6035tm-1.jpg" },
+      { make: "BharatBenz", name: "1217C", wiki: "Daimler_India_Commercial_Vehicles", tag: "", tagClass: "", specs: ["7.8m", "8500kg", "16.2T GVW"], fb: "https://res.cloudinary.com/dnreeobav/image/fetch/c_scale,q_30,w_350,f_auto/l_text:Arial_20_bold:TrucksBuses.com,x_70,y_100,co_rgb:ffffff/https://www.trucksbuses.com/uploads/170_BharatBenz-1217C-Tipper-Dumpers.jpg" },
+      { make: "Volvo", name: "FM 440", wiki: "Volvo_FM", tag: "Premium", tagClass: "tag-flagship", specs: ["10m", "20000kg", "37T GVW"], fb: "https://truckcdn.cardekho.com/in/volvo/fm-440/volvo-fm-440.jpg" },
+    ]
+  },
+  {
+    id: "bus-mini",
+    icon: "🚐",
+    title: "Mini Bus Cluster",
+    code: "CLUSTER_MB",
+    desc: "Small passenger buses for urban and rural transport. Seating capacity 10-25 passengers, used for feeder services and school transport.",
+    meta: { length: "5.0-7.0m", capacity: "10-25 seats", type: "Urban/School" },
+    vehicles: [
+      { make: "Force Motors", name: "Traveller", wiki: "Force_Traveller", tag: "Popular", tagClass: "tag-popular", specs: ["5.4m", "13-17 seats", "School/Staff"], fb: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/Force_Traveller_bus.jpg/800px-Force_Traveller_bus.jpg" },
+      { make: "Tata Motors", name: "Magic Express", wiki: "Tata_Magic", tag: "Budget", tagClass: "tag-budget", specs: ["4.4m", "10-12 seats", "Urban Feeder"], fb: "https://truckcdn.cardekho.com/in/tata/magic/tata-magic.jpg" },
+      { make: "Mahindra", name: "Tourister", wiki: "Mahindra_Tourister", tag: "", tagClass: "", specs: ["5.8m", "18-20 seats", "Inter-city"], fb: "https://www.team-bhp.com/forum/attachments/commercial-vehicles/1198989d1391078294-ashok-leyland-launches-partner-mitr-buses-20140130_152633.jpg" },
+      // { make: "Ashok Leyland", name: "MiTR", wiki: "Ashok_Leyland", tag: "School Bus", tagClass: "tag-commercial", specs: ["6.2m", "25 seats", "School"], fb: "https://www.team-bhp.com/forum/attachments/commercial-vehicles/1198989d1391078294-ashok-leyland-launches-partner-mitr-buses-20140130_152633.jpg" },
+    ]
+  },
+  {
+    id: "bus-standard",
+    icon: "🚌",
+    title: "Standard Bus Cluster",
+    code: "CLUSTER_SB",
+    desc: "Medium to full-size buses for inter-city and state transport. Seating capacity 30-50 passengers, backbone of public transportation.",
+    meta: { length: "9.0-12.0m", capacity: "30-50 seats", type: "KSRTC/MSRTC" },
+    vehicles: [
+      { make: "Tata Motors", name: "Starbus", wiki: "Tata_Starbus", tag: "State Transport", tagClass: "tag-commercial", specs: ["10.8m", "42 seats", "KSRTC/MSRTC"], fb: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Tata_Starbus_bus.jpg/800px-Tata_Starbus_bus.jpg" },
+      { make: "Ashok Leyland", name: "Viking", wiki: "Ashok_Leyland_Viking", tag: "Popular", tagClass: "tag-popular", specs: ["10.5m", "40 seats", "STU Buses"], fb: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Ashok_Leyland_Viking.jpg/800px-Ashok_Leyland_Viking.jpg" },
+      { make: "BharatBenz", name: "1623", wiki: "BharatBenz", tag: "", tagClass: "", specs: ["11m", "45 seats", "City/Intercity"], fb: "https://pbs.twimg.com/media/DSDOLG2VAAAD1pm?format=jpg&name=small" },
+      // { make: "Eicher Motors", name: "Skyline Pro", wiki: "Eicher_Motors", tag: "", tagClass: "", specs: ["9.8m", "35 seats", "Urban/Semi-urban"], fb: "https://truckcdn.cardekho.com/in/eicher/skyline-pro/eicher-skyline-pro.jpg" },
+    ]
+  },
+  // {
+  //   id: "bus-luxury",
+  //   icon: "🚍",
+  //   title: "Luxury / Sleeper Bus Cluster",
+  //   code: "CLUSTER_LB",
+  //   desc: "Premium long-distance coaches with AC, reclining seats, or sleeper berths. High-comfort inter-state and tourist transport.",
+  //   meta: { length: "12.0-14.0m", capacity: "20-40 berths", type: "AC Sleeper/Volvo" },
+  //   vehicles: [
+  //     { make: "Volvo", name: "9600 Multi-Axle", wiki: "Volvo_9700", tag: "Premium", tagClass: "tag-flagship", specs: ["13.7m", "40-45 seats", "AC Multi-axle"], fb: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Volvo_9600_bus_India.jpg/800px-Volvo_9600_bus_India.jpg" },
+  //     { make: "Mercedes-Benz", name: "OF 1623", wiki: "Mercedes-Benz_buses", tag: "Luxury", tagClass: "tag-flagship", specs: ["12m", "35 seats", "AC Coach"], fb: "https://truckcdn.cardekho.com/in/mercedes-benz/of-1623/mercedes-benz-of-1623.jpg" },
+  //     { make: "Scania", name: "Metrolink HD", wiki: "Scania", tag: "", tagClass: "", specs: ["13m", "38 seats", "Premium AC"], fb: "https://truckcdn.cardekho.com/in/scania/metrolink/scania-metrolink.jpg" },
+  //     { make: "Tata Motors", name: "Starbus Ultra Sleeper", wiki: "Tata_Starbus", tag: "Sleeper", tagClass: "tag-commercial", specs: ["12.5m", "32 berths", "AC Sleeper"], fb: "https://truckcdn.cardekho.com/in/tata/starbus-ultra/tata-starbus-ultra-sleeper.jpg" },
+  //   ]
+  // }
+];
+
+// ─── IMAGE LOADING ───────────────────────────
+const wikiCache = {};
+
+async function getWikiThumb(title) {
+  if (wikiCache[title] !== undefined) return wikiCache[title];
+  try {
+    const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&format=json&pithumbsize=800&origin=*`;
+    const r = await fetch(url);
+    const d = await r.json();
+    const pages = d.query.pages;
+    const pid = Object.keys(pages)[0];
+    const src = pages[pid]?.thumbnail?.source || null;
+    wikiCache[title] = src;
+    return src;
+  } catch { wikiCache[title] = null; return null; }
+}
+
+function tryLoad(img, src) {
+  return new Promise(res => {
+    img.onload  = () => res(true);
+    img.onerror = () => res(false);
+    img.src = src;
+  });
+}
+
+// ─── LIGHTBOX ────────────────────────────────
+const lb     = document.getElementById('lb');
+const lbImg  = document.getElementById('lb-img');
+const lbMake = document.getElementById('lb-make');
+const lbName = document.getElementById('lb-name');
+
+function openLB(src, make, name) {
+  lbImg.src  = src;
+  lbMake.textContent = make;
+  lbName.textContent = name;
+  lb.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLB() {
+  lb.classList.remove('open');
+  document.body.style.overflow = '';
+}
+lb.addEventListener('click', e => { if (e.target === lb) closeLB(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLB(); });
+
+// ─── RENDER ──────────────────────────────────
+function render() {
+  const app = document.getElementById('app');
+  let h = '';
+  
+  clusters.forEach(c => {
+    h += `<section class="sec" id="${c.id}">
+      <div class="sec-hd">
+        <div class="cluster-title">${c.icon} ${c.title} <span class="cluster-code">${c.code}</span></div>
+        <div class="cluster-desc">${c.desc}</div>
+        <div class="cluster-meta">
+          <span><strong>Length:</strong> ${c.meta.length || c.meta.capacity || 'N/A'}</span>
+          <span><strong>Weight/Payload:</strong> ${c.meta.weight || c.meta.payload || c.meta.gvw || 'N/A'}</span>
+          <span><strong>Capacity:</strong> ${c.meta.capacity || c.meta.type || 'N/A'}</span>
+        </div>
+      </div>
+      <div class="grid">`;
+    
+    c.vehicles.forEach((v, i) => {
+      const vid = `${c.id}-${i}`;
+      const tagHTML = v.tag ? `<div class="vehicle-tag ${v.tagClass}">${v.tag}</div>` : '';
+      const specsHTML = v.specs.map(s => `<div class="vspec">${s}</div>`).join('');
+      
+      h += `
+        <div class="vcard" onclick="onCardClick('${vid}')">
+          <div class="vimg-wrap" id="w-${vid}">
+            <div class="vfb"><div class="vfb-icon">${c.icon}</div><div class="vfb-text">${v.make}<br/>${v.name}</div></div>
+            <img class="vimg" id="i-${vid}" alt="${v.make} ${v.name}" data-wiki="${v.wiki}" data-fb="${v.fb}" data-make="${v.make}" data-name="${v.name}"/>
+            <div class="vimg-overlay"></div>
+            ${tagHTML}
+          </div>
+          <div class="vbody">
+            <div class="vmake">${v.make}</div>
+            <div class="vname">${v.name}</div>
+            <div class="vspecs">${specsHTML}</div>
+          </div>
+        </div>`;
+    });
+    
+    h += '</div></section>';
+  });
+  
+  app.innerHTML = h;
+}
+
+function onCardClick(vid) {
+  const img = document.getElementById('i-' + vid);
+  if (img && img.src && img.classList.contains('loaded')) {
+    openLB(img.src, img.dataset.make, img.dataset.name);
+  }
+}
+
+// ─── LOAD ALL IMAGES ─────────────────────────
+async function loadImages() {
+  const imgs = Array.from(document.querySelectorAll('img.vimg'));
+  
+  for (let i = 0; i < imgs.length; i += 8) {
+    await Promise.allSettled(
+      imgs.slice(i, i + 8).map(async img => {
+        const wrap = img.closest('.vimg-wrap');
+        const done = () => wrap.classList.add('done');
+
+        // Try Wikipedia first
+        const wikiSrc = await getWikiThumb(img.dataset.wiki);
+        if (wikiSrc) {
+          const ok = await tryLoad(img, wikiSrc);
+          if (ok) { img.classList.add('loaded'); done(); return; }
+        }
+
+        // Fallback URL
+        const fbSrc = img.dataset.fb;
+        if (fbSrc) {
+          const ok = await tryLoad(img, fbSrc);
+          if (ok) { img.classList.add('loaded'); done(); return; }
+        }
+
+        // Failed - show emoji
+        img.style.display = 'none';
+        done();
+      })
+    );
+  }
+}
+
+render();
+loadImages();
+</script>
+</body>
+</html>
